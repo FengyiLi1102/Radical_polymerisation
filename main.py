@@ -201,16 +201,17 @@ for IandT in initial_concentrations:
     T0 = int(IandT[1] * 1E-3 * V * NA)
     M0 = int(M * V * NA)
     # print(I0)
-    t = 0           # System time  (s)
-    I = I0          # Initial initiator concentration  (#)
-    T = T0          # Initial agent concentration      (#)
-    M = M0          # Initial monomer concentration    (#)
-    Rn_d = {0:0}    # Rn dot : number of chains
-    d_TRn = {}      # dot TRn : number of chains
-    TRn = {}   
-    RnTRm = {}
-    times = 0       # variable to update the name of the txt file
-    wDict = {}      # store the data required for distribution plots
+    t = 0               # System time  (s)
+    I = I0              # Initial initiator concentration  (#)
+    T = T0              # Initial agent concentration      (#)
+    M = M0              # Initial monomer concentration    (#)
+    Rn_d = {0:0}        # Rn dot : number of chains
+    d_TRn = {}          # dot TRn : number of chains
+    TRn = {}    
+    RnTRm = {}  
+    times = 0           # variable to update the name of the txt file
+    wDict = {}          # store the data required for distribution plots
+    t_and_R0 = {0:0}    # store the data required for concentration plots
 
 
     
@@ -297,6 +298,12 @@ for IandT in initial_concentrations:
         else:
             reaction_prob_1(reaction_chosen)
         
+        # collect concentration of the R0
+        if 0 not in Rn_d.keys():
+            t_and_R0.update({t: 0})
+        else:
+            t_and_R0.update({t:Rn_d[0]})
+
         if round(t) % interval == 0:
             times += 1
             name = times * interval
@@ -304,7 +311,7 @@ for IandT in initial_concentrations:
             chainType_Rnd = list(Rn_d.keys())
             total_chainRnd = sum(chainNum_Rnd)
 
-            file=open(r'P(n)_n\system_{0:05d}.txt'.format(name),'w+')
+            file=open(r'Rnd_fraction\system_{0:05d}.txt'.format(name),'w+')
             file.write('R_n, n fraction(%)\n')
             ii = 0
             for i in chainNum_Rnd:
@@ -322,7 +329,7 @@ for IandT in initial_concentrations:
                 dataArr[i,:]=[int(dataList[i].split(',')[0]),float(dataList[i].split(',')[1])]
 
             TotalPx=probArr[1] + probArr[2] + probArr[5] + probArr[8] + probArr[9]
-            fig1 = plt.figure(1)
+            fig1 = plt.figure(dpi=300)
             plt.bar(dataArr[:,0], TotalPx*dataArr[:,1], width=0.5, fc='b')
             plt.xlabel('n')
             plt.ylabel('P(n)')
@@ -345,11 +352,24 @@ for IandT in initial_concentrations:
         print('RnTRm\n', RnTRm)
         print('Prob\n', probArr)
     
-    fig2 = plt.figure(2)
+    fig2 = plt.figure(dpi=300)
     plt.plot(list(wDict.keys()), list(wDict.values()), color='green')
     plt.xlabel('t')
     plt.ylabel('W')
-    fig2.savefig(r'W_t\W_t_{0:05d}'.format(name))
+    fig2.savefig(r'W_t\W_t_{0:05d}.png'.format(name))
     plt.close(fig2)
+
+    fig3 = plt.figure(dpi=300)
+    ax = fig3.add_subplot(111)
+    # fig.add_axes(ax)
+    ax.plot([i for i in t_and_R0.keys()], [i*alpha for i in t_and_R0.values()], '-', color="r", lw=1)
+    ax.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+    ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+    ax.xaxis.major.formatter._useMathText = True
+    ax.yaxis.major.formatter._useMathText = True
+    ax.set_ylabel("concentration (n/L)")
+    ax.set_xlabel("t(s)")
+    fig3.savefig(r'concentration\Rnd_t_{0:05d}.png'.format(name))
+    plt.close(fig3)
 
     print('---------------------------------------------------------------')
