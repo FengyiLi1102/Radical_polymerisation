@@ -1,3 +1,6 @@
+# Radical polymerisation simulation
+# Author: Joanna Jiang, Angela Pan, Rachael Wang, Hanjia Zhang 
+#--------------------------------
 import numpy as np
 from timeit import default_timer as timer
 import math
@@ -78,7 +81,7 @@ def reaction11():
 def reaction_prob_0(num):
     # Combine reaction 2.1, 3.1, 3.2 and 3.3 together
     # Reaction 2.1 and 3.1
-    global M, T, Rn_d, d_TRn, TRn
+    global M, T, Rn_d, d_TRn, TRn, RnTRm
     if num in [1, 2]:
         reacts = chain_prob_0(Rn_d) # n
         Rn_d.update({reacts: Rn_d[reacts]-1})
@@ -152,19 +155,7 @@ def reaction_prob_1(num):
             For updating the concentration of the Pn and Pm
             """
 
-
-def reaction_prob_2():
-    global RnTRm, Rn_d
-    # reaction 5.4
-    reacts = chain_prob_2(RnTRm, Rn_d)
-    n, m = int(list(reacts[0])[0]), int(list(reacts[0][2]))
-    s = reacts[1]
-    RnTRm.update({reacts[0]: RnTRm[reacts[0]]-1})
-    RnTRm = delItem(RnTRm, reacts[0])
-    Rn_d.update({s: Rn_d[s]-1})
-    RnTRm = delItem(RnTRm, reacts[1])
-
-
+global M, Rn_d, d_TRn, TRn, RnTRm
 # Global constants required to be tuned before starting the simulation
 # Kinetic constant (in the unit of mM and h)
 k11 = 0.36/3600 * 10E3 # 0.36
@@ -172,6 +163,30 @@ k21 = 3.6*10**15*3600 # E7
 k31 = k41 = 3.6*10**18*3600 # E10
 k32 = k33 = k42 = k43 = 18*10**25/3600 # E8
 k51 = k52 = k53 = k54 = 3.6*10**20*3600 # E11
+t_max = 36000           # Total time for the simulation
+interval = 100          # time interval for n and P(n)
+M = 5                   # Monomer concentration (mM/L)
+V = 0.1                 # Reaction volume       (L)
+NA = spc.N_A            # Avogadro's constant   (per mole)
+alpha = 1/(V*NA)        # Conversion factor from N/L to n/L
+I_arr, T_arr = np.array([10E-1]), np.array([10E-1])
+initial_concentrations = np.array([[I_arr[i], T_arr[j]] for i in range(len(I_arr)) 
+                                    for j in range(len(T_arr))])
+
+log = open('settings.txt', 'w')
+log.write('K11: {0}\n'.format(k11))
+log.write('K21: {0}\n'.format(k21))
+log.write('K31, K41: {0}\n'.format(k31))
+log.write('K32, K33, K42, K43: {0}\n'.format(k32))
+log.write('K51, K52, K53, K54: {0}\n'.format(k51))
+log.write('Total time: {0}s\n'.format(t_max))
+log.write('[M]: {0}mM\n'.format(M))
+log.write('V: {0}L\n'.format(V))
+log.write('[I]: {0}mM\n'.format(I_arr[0]))
+log.write('[T]: {0}mM\n'.format(T_arr[0]))
+log.write('Data recorded interval: {0}s\n'.format(interval))
+log.close()
+
 kinetic_constant = {"k11": k11, 
                     "k21": k21, 
                     "k31": k31, 
@@ -184,16 +199,7 @@ kinetic_constant = {"k11": k11,
                     "k52": k52, 
                     "k53": k53, 
                     "k54": k54}
-t_max = 36000            # Total time for the simulation
-M = 5                  # Monomer concentration (mM/L)
-V = 0.1                 # Reaction volume       (L)
-NA = spc.N_A            # Avogadro's constant   (per mole)
-alpha = 1/(V*NA)        # Conversion factor from N/L to n/L
-I_arr, T_arr = np.array([10E-1]), np.array([10E-1])
-initial_concentrations = np.array([[I_arr[i], T_arr[j]] for i in range(len(I_arr)) 
-                                    for j in range(len(T_arr))])
-interval = 100           # time interval for n and P(n)
-
+settingNum = 0
 
 # Starts the simulation for each initial setting
 for IandT in initial_concentrations:
@@ -212,9 +218,6 @@ for IandT in initial_concentrations:
     times = 0           # variable to update the name of the txt file
     wDict = {}          # store the data required for distribution plots
     t_and_R0 = {0:0}    # store the data required for concentration plots
-
-
-    
     # A specific initial setting
     while(t < t_max):
         ratesList = [] # a list of reaction rate
@@ -266,8 +269,6 @@ for IandT in initial_concentrations:
         ratesList.append(R54)
     
         ratesArr = np.array(ratesList)
-        if np.NaN in ratesArr:
-            raise ValueError('Probabilities have NaN values.')
         total_R = ratesArr.sum() # sum all the reaction rate
    
 
@@ -278,11 +279,6 @@ for IandT in initial_concentrations:
         reaction_index = np.arange(12)
         reaction_chosen = np.random.choice(reaction_index, size = 1, 
                                            replace = True, p = probArr)[0]
-        # if t>=100000:
-        #     xx = 0.05
-        #     p = [xx for i in range(5)] + [1-xx*11] + [xx for i in range(6)]
-        #     reaction_chosen = np.random.choice(reaction_index, size = 1, 
-        #                                    replace = True, p = p)[0]
         r = np.random.uniform(0, 1, 1)
         tau = 1/total_R * math.log(1/r)
         t += tau # Update the system time
@@ -311,7 +307,7 @@ for IandT in initial_concentrations:
             chainType_Rnd = list(Rn_d.keys())
             total_chainRnd = sum(chainNum_Rnd)
 
-            file=open(r'Rnd_fraction\system_{0:05d}.txt'.format(name),'w+')
+            file=open(r'Rnd_fraction\system_{1:05d}.txt'.format(settingNum, name),'w+')
             file.write('R_n, n fraction(%)\n')
             ii = 0
             for i in chainNum_Rnd:
@@ -372,4 +368,5 @@ for IandT in initial_concentrations:
     fig3.savefig(r'concentration\Rnd_t_{0:05d}.png'.format(name))
     plt.close(fig3)
 
+    settingNum +=1
     print('---------------------------------------------------------------')
